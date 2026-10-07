@@ -6,177 +6,255 @@
 [![LightGBM](https://img.shields.io/badge/LightGBM-Regression-9ACD32)](https://lightgbm.readthedocs.io/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?logo=streamlit)](https://streamlit.io/)
 
-## 📌 Project Overview
+# 🎯 Business Problem
 
-The **Dubai Real Estate Valuation Engine** is an end-to-end machine learning project developed to estimate residential property values across Dubai.
+Real estate prices can vary significantly depending on:
 
-The project uses **172,704 raw Dubai property transactions** and applies data cleaning, feature engineering, exploratory analysis, categorical encoding, model comparison, hyperparameter tuning, and model deployment.
+- Property size
+- Community
+- Property type
+- Bedroom/layout
+- Ready vs. off-plan status
+- Market conditions
+- Nearby landmarks and malls
+- Transaction period
 
-The final solution uses a **tuned LightGBM Regressor** to predict property values based on property characteristics, size, market community, nearby landmarks, nearby malls, registration status, and transaction timing.
+The objective of this project was to develop a data-driven **Automated Valuation Model (AVM)** capable of learning these relationships and generating practical property-value estimates.
 
-The trained model is deployed through a **Streamlit valuation application** that allows users to enter property specifications and receive an estimated property value and price-per-square-foot range.
+### Objectives
 
----
-
-## 🎯 Business Problem
-
-Real estate valuation can vary significantly depending on property size, location, layout, market conditions, and whether a property is ready or off-plan.
-
-The objective of this project was to build a data-driven automated valuation model that can:
-
-- Estimate residential property prices using historical transaction data
-- Capture non-linear relationships between property characteristics and price
-- Account for location and market differences across Dubai
-- Provide an easy-to-use valuation interface for end users
-- Produce a practical valuation range rather than a single estimate
-
----
-
-## 📊 Dataset
-
-The project began with **172,704 Dubai Land Department transaction records**.
-
-### Data filtering
-
-The analysis focused on:
-
-- Sales transactions
-- Residential properties
-- Property types: **Unit** and **Villa**
-- Properties with valid transaction values and areas
-- Removal of non-residential subtypes such as offices, shops, and hotel apartments
-
-After filtering and data-quality treatment, the modeling dataset contained approximately **82,178 transactions**.
-
-### Key information used
-
-| Feature | Description |
-|---|---|
-| `actual_worth` | Transaction property value |
-| `procedure_area` | Property area in square meters |
-| `rooms_en` | Property layout / bedroom classification |
-| `property_type_en` | Unit or Villa |
-| `reg_type_en` | Ready or Off-Plan |
-| `area_name_en` | Original DLD area classification |
-| `nearest_landmark_en` | Nearest landmark |
-| `nearest_mall_en` | Nearest shopping mall |
-| `instance_date` | Transaction date |
-| Building / project fields | Property location context |
+- Analyze historical Dubai real estate transactions
+- Identify major pricing patterns
+- Clean and standardize inconsistent transaction data
+- Engineer machine learning features
+- Compare multiple regression algorithms
+- Optimize the strongest-performing model
+- Deploy the final model through Streamlit
 
 ---
 
-## 🧹 Data Preparation & Cleaning
+# 📊 Exploratory Data Analysis
 
-Several data-quality and transformation steps were performed before modeling.
+## 🎯 Distribution of Target Variables
 
-### Data quality checks
+The original property-value distribution was highly right-skewed because of high-value and luxury transactions.
 
-- Identified duplicate records
-- Examined data types and missing values
-- Removed columns with 100% missing values
-- Handled missing categorical information
-- Removed records with missing critical pricing or room information
-- Standardized categorical values using trimming and title casing
-- Investigated inconsistent community names
+- Raw `actual_worth` skewness: **6.47**
+- Log-transformed target skewness: **0.58**
 
-### Geographic standardization
+A logarithmic transformation was therefore applied to the target variable.
 
-Dubai Land Department area names were mapped into more recognizable market communities.
+<p align="center">
+  <img src="Images/Distribution%20of%20Target%20Variables.png" width="850">
+</p>
 
-Examples include:
+### Insight
 
-- `Marsa Dubai` → **Dubai Marina**
-- `Burj Khalifa` → **Downtown Dubai**
-- `Al Barsha South Fourth` → **Jumeirah Village Circle (JVC)**
-- `Al Merkadh` → **Mohammed Bin Rashid City (MBR)**
-- `Al Thanyah Fifth` → **Jumeirah Lakes Towers (JLT)**
-- `Hadaeq Sheikh Mohammed Bin Rashid` → **Dubai Hills Estate**
-- `Nadd Hessa` → **Dubai Silicon Oasis**
-- `Al Hebiah Fourth` → **Jumeirah Village Triangle (JVT)**
-
-This standardization reduced inconsistencies caused by variations in naming, spacing, and capitalization.
+The log transformation substantially reduced the influence of extreme luxury transactions and created a more balanced target distribution for machine learning.
 
 ---
 
-## 🔎 Exploratory Data Analysis
+## 🏠 Bedroom Count vs Price
 
-The project examined the major drivers and patterns behind Dubai residential property prices.
+The relationship between bedroom/layout categories and property value was analyzed to understand how property configuration affects price.
 
-### Price distribution
+<p align="center">
+  <img src="Images/Bedroom%20Count%20VS%20Price.png" width="850">
+</p>
 
-The raw property-value distribution was highly right-skewed due to the presence of luxury transactions.
+### Insight
 
-- Raw price skewness: **6.47**
-- Log-transformed price skewness: **0.58**
+Properties with more bedrooms generally commanded higher total prices. However, significant variation remained within individual bedroom categories, showing that **location, property size, property type and other characteristics also influence valuation**.
 
-A logarithmic transformation was therefore applied to the target variable to improve distribution balance and make the model less dominated by extreme luxury transactions.
+Luxury layouts such as penthouses also showed considerably wider price distributions.
 
-### Community-level pricing
+---
 
-Community analysis revealed substantial variation in both total property prices and price per square foot.
+## 📐 Size vs Price
 
-Key observations included:
+Property size was compared against actual transaction value.
 
-- **Palm Jumeirah** recorded the highest median property values and among the highest median price-per-square-foot levels.
-- **Downtown Dubai** ranked among the strongest markets in price per square foot.
-- Areas such as **International City, Dubai Production City, and Dubai Silicon Oasis** were among the lower-priced markets.
-- Some communities showed relatively high total property values despite comparatively lower price-per-square-foot levels, highlighting the importance of property size.
+<p align="center">
+  <img src="Images/Size%20VS%20Price.png" width="850">
+</p>
 
-### Market trend
+### Insight
 
-The dataset covered transactions from **2020 to 2025**.
+Larger properties generally had higher transaction values, but the relationship was not purely linear.
 
-Median property prices increased from approximately **AED 1.1M in 2020** to over **AED 1.92M in 2025**, while median price per square foot increased from approximately **AED 922** to **AED 1,632**.
+Properties with similar sizes could still have substantially different values, highlighting the importance of **location and market-specific characteristics**.
+
+---
+
+## 🗺️ Price & Price per Square Foot by Community
+
+Community-level analysis was performed using median property price and median price per square foot.
+
+<p align="center">
+  <img src="Images/Price%20and%20price%20per%20square%20foot%20by%20community.png" width="900">
+</p>
+
+### Key Insights
+
+- **Palm Jumeirah** recorded the highest median property values and was among the strongest markets in price per square foot.
+- **Downtown Dubai** ranked among the highest communities by price per square foot.
+- **Dubai Hills Estate** showed high median property values while ranking differently on price per square foot, demonstrating the effect of property size.
+- **International City, Dubai Production City, and Dubai Silicon Oasis** were among the lower-priced communities.
+
+### Business Takeaway
+
+Location is one of the most important dimensions of Dubai property valuation, and community-level differences must be captured by an automated valuation model.
+
+---
+
+## 📈 Property Price Movement Across Six Years
+
+Transaction trends were analyzed from **2020 to 2025**.
+
+<p align="center">
+  <img src="Images/Price%20Movement%20Across%20The%20Six%20Years.png" width="900">
+</p>
+
+### Key Insights
+
+Median property price increased from approximately:
+
+**AED 1.1M → AED 1.92M+**
+
+Median price per square foot increased from approximately:
+
+**AED 922 → AED 1,632**
 
 Transaction volume peaked in **2024 at approximately 16,816 transactions**.
 
-### Property characteristics
+### Modeling Implication
 
-The analysis also investigated:
+These market movements reinforced the importance of including:
 
-- Property size vs. price
-- Bedroom/layout vs. price
-- Ready vs. off-plan properties
-- Price-per-square-foot differences
-- High-value and luxury-property outliers
+- Transaction Year
+- Transaction Quarter
+- Transaction Month
+- Market Age
 
-Larger properties generally commanded higher total prices, while properties with similar sizes could still show substantial price differences depending on location and other property characteristics.
+as predictive features.
 
 ---
 
-## ⚙️ Feature Engineering
+## 🏗️ Off-Plan vs Ready Properties
 
-The model was trained using engineered numerical and categorical variables.
+Ready and off-plan properties were compared to understand differences in pricing.
 
-### Engineered features
+<p align="center">
+  <img src="Images/OFF%20Plan%20VS%20Ready.png" width="850">
+</p>
 
-- `log_size_sqft`
-- `rooms_ordinal`
-- `is_off_plan`
-- `transaction_year`
-- `transaction_quarter`
-- `transaction_month`
-- `market_age_months`
+### Insight
 
-### Target transformation
+Ready properties showed slightly higher median prices and price-per-square-foot levels in the analyzed dataset, while both categories contained significant high-value outliers.
 
-The target property value was transformed using:
+This supported the inclusion of **registration status** as a machine learning feature.
+
+---
+
+# 🧹 Data Preparation
+
+The project started with:
+
+### **172,704 Raw Transactions**
+
+The dataset was filtered to focus on the target residential population.
+
+### Filtering Criteria
+
+1. Sales transactions only
+2. Residential properties only
+3. Unit and Villa property types
+4. Positive transaction value
+5. Positive property area
+6. Removal of non-target property subtypes such as:
+   - Office
+   - Shop
+   - Hotel Apartment
+
+After filtering and data-quality treatment:
+
+### **82,178 Transactions**
+
+remained for analysis and modeling.
+
+### Data Quality Treatment
+
+- Duplicate checks
+- Missing-value analysis
+- Data-type validation
+- Removal of completely empty columns
+- Missing categorical-value handling
+- Removal of records missing critical pricing/layout information
+- Categorical standardization
+- Community-name normalization
+
+Columns such as `rent_value` and `meter_rent_price`, which were completely missing, were removed.
+
+---
+
+# 📍 Location Standardization
+
+Dubai Land Department area names were mapped into more recognizable market communities.
+
+| Original DLD Area | Market Community |
+|---|---|
+| Al Barsha South Fourth | Jumeirah Village Circle (JVC) |
+| Marsa Dubai | Dubai Marina |
+| Burj Khalifa | Downtown Dubai |
+| Al Merkadh | Mohammed Bin Rashid City (MBR) |
+| Al Thanyah Fifth | Jumeirah Lakes Towers (JLT) |
+| Hadaeq Sheikh Mohammed Bin Rashid | Dubai Hills Estate |
+| Nadd Hessa | Dubai Silicon Oasis |
+| Me’Aisem First | Dubai Production City |
+| Al Hebiah Fourth | Jumeirah Village Triangle (JVT) |
+| Al Khairan First | Dubai Creek Harbour |
+
+This standardization addressed inconsistencies caused by differences in naming, capitalization, and spacing.
+
+---
+
+# ⚙️ Feature Engineering
+
+The model used engineered numerical and categorical features.
+
+### Numerical Features
+
+```text
+log_size_sqft
+rooms_ordinal
+is_off_plan
+transaction_year
+transaction_quarter
+transaction_month
+market_age_months
+```
+
+### Categorical Features
+
+```text
+property_type_en
+market_community_name
+nearest_landmark_en
+nearest_mall_en
+```
+
+### Log Transformation
 
 ```python
 log_actual_worth = np.log(actual_worth)
-```
-
-Property size was also transformed:
-
-```python
 log_size_sqft = np.log(size_sqft)
 ```
 
-This helped reduce skewness and allowed the model to better capture relative differences across low-, mid-, and high-value properties.
+The target was modeled on the **log scale** rather than raw property value.
 
-### Bedroom encoding
+### Bedroom Encoding
 
-Property layouts were converted into an ordinal representation:
+Bedroom/layout categories were converted into an ordinal representation:
 
 ```text
 Studio        → 0
@@ -185,84 +263,94 @@ Single Room   → 1
 2 B/R         → 3
 2 B/R+M       → 4
 3 B/R         → 5
-...
+3 B/R+M       → 6
+4 B/R         → 7
+4 B/R+M       → 8
+5 B/R         → 9
+5 B/R+M       → 10
+6 B/R         → 11
 Penthouse     → 12
 ```
 
 ---
 
-## 🤖 Machine Learning Approach
+# 🤖 Machine Learning
 
-Multiple regression algorithms were evaluated to identify the strongest predictive approach.
-
-### Models evaluated
+Several regression algorithms were evaluated:
 
 - Linear Regression
 - Ridge Regression
-- Random Forest Regressor
-- Gradient Boosting Regressor
-- XGBoost Regressor
-- LightGBM Regressor
+- Random Forest
+- Gradient Boosting
+- XGBoost
+- LightGBM
 
-Categorical variables with high cardinality, particularly location-related fields, were handled using **Target Encoding**.
+The dataset was divided into:
 
-The data was split into:
+**80% Training / 20% Testing**
 
-- **80% Training**
-- **20% Testing**
-
-with:
+using:
 
 ```python
 random_state = 42
 ```
 
----
-
-## 📈 Model Development
-
-### Raw-price vs. log-price Linear Regression
-
-The log transformation produced a major improvement in linear regression performance.
-
-| Model | MAPE | R² |
-|---|---:|---:|
-| Linear Regression – Raw Price | 75.60% | — |
-| Linear Regression – Log Price | 18.23% | — |
-
-This demonstrated the importance of transforming the heavily skewed property-value target.
+High-cardinality categorical variables were handled using **Target Encoding**.
 
 ---
 
-## 🏆 Final Model: Tuned LightGBM
+# 🧪 Model Development
 
-LightGBM produced the strongest overall results among the evaluated models.
+## Raw Price vs Log Price
 
-Hyperparameters were optimized using:
+One of the major experiments compared Linear Regression using raw property value against a log-transformed target.
 
-**RandomizedSearchCV**
+| Model | MAPE |
+|---|---:|
+| Linear Regression – Raw Price | 75.60% |
+| Linear Regression – Log Price | **18.23%** |
+
+### Key Finding
+
+Applying a log transformation reduced MAPE by:
+
+### **57.37 percentage points**
+
+This demonstrated the importance of handling the heavily skewed real estate price distribution.
+
+---
+
+# 🏆 Final Model: Tuned LightGBM
+
+Among the evaluated algorithms, **LightGBM** produced the strongest overall performance.
+
+The model was optimized using:
+
+### RandomizedSearchCV
 
 with:
 
 - 5-fold cross-validation
 - 8 parameter combinations
 - 40 total model fits
-- Negative Mean Squared Error as the optimization metric
+- Negative Mean Squared Error scoring
 
-The tuned model used parameters including:
+### Tuned Parameters Included
 
-- `num_leaves`
-- `learning_rate`
-- `n_estimators`
-- `min_child_samples`
-- `subsample`
-- `colsample_bytree`
+```text
+num_leaves
+learning_rate
+n_estimators
+min_child_samples
+subsample
+colsample_bytree
+```
 
 ---
 
-## 📊 Final Model Performance
+# 📊 Model Performance
 
-The tuned LightGBM model achieved:
+The final tuned LightGBM model achieved:
 
 | Metric | Result |
 |---|---:|
@@ -271,17 +359,41 @@ The tuned LightGBM model achieved:
 | **MAE** | **≈ AED 268,400** |
 | **MAE %** | **15.35%** |
 
-The model reduced MAPE from **13.57% to 13.52%** after tuning and slightly improved R² from **94.59% to 94.64%**.
+### Baseline vs Tuned LightGBM
 
-A lower MAPE indicates that the model's predicted property values were, on average, relatively close to the actual transaction values.
+| Metric | Baseline | Tuned |
+|---|---:|---:|
+| R² | 94.59% | **94.64%** |
+| MAPE | 13.57% | **13.52%** |
+| MAE % | 15.51% | **15.35%** |
+
+<p align="center">
+  <img src="Images/Running%20Model%201.png" width="850">
+</p>
+
+<p align="center">
+  <img src="Images/Running%20Model%202.png" width="850">
+</p>
+
+### Model Takeaway
+
+Hyperparameter tuning produced a modest but measurable improvement in predictive performance.
+
+> **Note:** MAPE is used as the primary relative-error metric. `100 - MAPE` should not be interpreted as a conventional classification accuracy score.
 
 ---
 
-## 💻 Streamlit Valuation Application
+# 💻 Streamlit Automated Valuation Application
 
-The trained model was deployed through a Streamlit application designed as a practical automated valuation interface.
+The trained model was exported as:
 
-### User Inputs
+```text
+uae_real_estate_avm_tuned_model.joblib
+```
+
+A Streamlit application was built to make the model accessible to non-technical users.
+
+## 📝 User Inputs
 
 Users can specify:
 
@@ -297,48 +409,59 @@ Users can specify:
 - Nearest Landmark
 - Nearest Mall
 
-### Application Output
+The application dynamically generates transaction-related features such as:
 
-The application provides:
+- Transaction Year
+- Transaction Quarter
+- Transaction Month
+- Market Age
 
-**Estimated Property Value**
+before generating the prediction.
+
+---
+
+# 💰 Valuation Output
+
+The application generates:
+
+## Total Property Valuation
 
 - Conservative Estimate
 - Baseline Valuation
 - Optimistic Estimate
 
-**Price per Square Foot**
+## Price per Square Foot
 
-- Conservative estimate
-- Baseline estimate
-- Optimistic estimate
+- Conservative Estimate
+- Baseline Price / Sq. Ft.
+- Optimistic Estimate
 
-The valuation range is derived using the model's **13.52% MAPE** as a symmetric margin around the baseline prediction.
+The valuation range uses the model's **13.52% MAPE** as a symmetric margin around the baseline prediction.
 
-> **Note:** This range is a practical model-based valuation band and should not be interpreted as a formal statistical confidence interval.
+> This is a model-based valuation range and should not be interpreted as a formal statistical confidence interval.
 
 ---
 
-## 🖥️ Application Design
+# 🎨 Application Design
 
-The application uses a professional **Navy & Gold real estate theme** with:
+The Streamlit application was designed using a professional **Navy & Gold** real-estate theme.
 
-- Branded header
-- Company logo support
+### Interface Features
+
+- Saleem Real Estate branding
+- Company logo
+- Sidebar property controls
 - Property specification cards
-- Sidebar input controls
 - Valuation metric cards
-- Total-price breakdown
+- Total valuation breakdown
 - Price-per-square-foot breakdown
 - Responsive wide-screen layout
 
-The application dynamically calculates transaction-year, quarter, month, and market-age features before generating a prediction.
-
 ---
 
-## 🛠️ Tech Stack
+# 🛠️ Tech Stack
 
-### Programming & Analysis
+### Programming & Data Analysis
 
 - Python
 - Pandas
@@ -352,56 +475,68 @@ The application dynamically calculates transaction-year, quarter, month, and mar
 - LightGBM
 - XGBoost
 - Category Encoders
-- Joblib
 
 ### Deployment
 
 - Streamlit
+- Joblib
 
-### Data Processing
+### Core Techniques
 
-- Data cleaning
-- Feature engineering
-- Target encoding
-- Log transformation
-- Model comparison
-- Hyperparameter tuning
-- Cross-validation
+- Data Cleaning
+- Exploratory Data Analysis
+- Feature Engineering
+- Log Transformation
+- Target Encoding
+- Regression Modeling
+- Hyperparameter Tuning
+- Cross-Validation
+- Model Deployment
 
 ---
 
-## 📁 Project Structure
+# 📁 Project Structure
 
 ```text
 365-Real-Estate/
+│
+├── Images/
+│   ├── Bedroom Count VS Price.png
+│   ├── Distribution of Target Variables.png
+│   ├── logo.png
+│   ├── OFF Plan VS Ready.png
+│   ├── Price and price per square foot by community.png
+│   ├── Price Movement Across The Six Years.png
+│   ├── Running Model 1.png
+│   ├── Running Model 2.png
+│   └── Size VS Price.png
 │
 ├── dld_transactions.csv
 ├── df_clean.csv
 ├── uae_real_estate_avm_tuned_model.joblib
 ├── app.py
 ├── notebook.ipynb
-├── logo.png
 └── README.md
 ```
 
 ---
 
-## 🚀 How to Run
+# 🚀 How to Run
 
-### 1. Clone the repository
+## 1. Clone the Repository
 
 ```bash
 git clone <your-repository-url>
 cd 365-Real-Estate
 ```
 
-### 2. Install dependencies
+## 2. Install Dependencies
 
 ```bash
 pip install pandas numpy matplotlib seaborn scikit-learn lightgbm xgboost category_encoders streamlit joblib openpyxl
 ```
 
-### 3. Run the Streamlit application
+## 3. Run the Streamlit Application
 
 ```bash
 streamlit run app.py
@@ -411,81 +546,121 @@ The application will open in your browser.
 
 ---
 
-## 📌 Key Business Insights
+# 💡 Key Business Insights
 
-### 1. Location has a major influence on valuation
+### 📍 Location Matters
 
-Dubai communities showed substantial differences in both median property price and price per square foot, making location-related features critical to the valuation model.
+Dubai communities showed substantial differences in both median property value and price per square foot.
 
-### 2. Price increases with property size, but size alone is not sufficient
+### 📐 Size Drives Total Value
 
-Larger properties generally command higher total prices, but properties of similar sizes can have significantly different values depending on location and other characteristics.
+Larger properties generally commanded higher total prices, but size alone could not explain the full variation.
 
-### 3. Luxury properties are difficult to model
+### 🏆 Luxury Properties Are Harder to Predict
 
-High-value villas, penthouses, and other luxury transactions create a much wider pricing distribution and are harder to predict accurately.
+High-value villas and penthouses showed wider price distributions, increasing valuation uncertainty.
 
-### 4. Market timing matters
+### 📈 Market Conditions Matter
 
-The increase in median property values and price per square foot from 2020 through 2025 demonstrates the importance of transaction timing in the valuation process.
+Median property prices and price per square foot increased substantially between 2020 and 2025.
 
-### 5. Log transformation substantially improved model behavior
+### 📊 Log Transformation Improved Modeling
 
-Transforming the target from raw property price to log(price) reduced the impact of extreme luxury transactions and dramatically improved baseline linear-model performance.
+Transforming the highly skewed property-price target substantially improved regression performance.
 
 ---
 
-## ⚠️ Model Limitations
+# ⚠️ Model Limitations
 
-Although the final model achieved strong predictive performance, several factors were not available in the dataset.
+The model does not directly capture several property-level characteristics that can materially affect value.
 
-The model does not directly capture:
+These include:
 
-- View orientation
+- Floor number
 - Floor elevation
+- View orientation
 - Natural lighting
-- Renovation or interior quality
-- Individual building quality
-- Developer-specific quality at building level
-- Seller motivation or distressed transactions
-- Off-plan payment-plan structures
+- Renovation status
+- Interior quality
+- Building-level quality
+- Developer-specific characteristics
+- Seller motivation
+- Distressed transactions
+- Off-plan payment plans
 
-Identical layouts within the same tower can also vary significantly in value because of these property-level characteristics.
+Two properties with similar layouts in the same tower can still have materially different values because of these factors.
 
-### Deployment consideration
-
-The historical modeling dataset covers **2020–2025**, while the Streamlit application dynamically uses the current year and month as prediction inputs. As a result, predictions made after 2025 involve extrapolation of the time-related features beyond the training period.
-
-For production deployment, the model should be regularly retrained using the latest transaction data.
+Luxury and penthouse transactions are also relatively sparse, making these segments more difficult to predict reliably.
 
 ---
 
-## 🔮 Future Improvements
+# 🔮 Future Improvements
 
 Potential improvements include:
 
-- Adding building-level features
-- Adding floor number and view orientation
-- Incorporating developer information
-- Adding renovation and property-condition variables
-- Incorporating geospatial distance features
-- Adding recent market indicators
-- Retraining the model periodically
-- Developing confidence/uncertainty estimates
-- Expanding the application with historical valuation comparisons
+- Building-level features
+- Floor number
+- View orientation
+- Renovation status
+- Property condition
+- Developer information
+- Geospatial distance features
+- Recent market indicators
+- Automated model retraining
+- Prediction uncertainty estimates
+- Comparable-property analysis
+- More granular building/project features
 
 ---
 
-## ✅ Project Outcome
+# 🔄 End-to-End Workflow
 
-This project demonstrates a complete machine learning workflow from **raw real estate transaction data to a deployed valuation application**.
-
-The final tuned LightGBM model achieved a **94.64% R²** with **13.52% MAPE** and an approximate **AED 268K MAE**, providing a practical foundation for automated residential property valuation in Dubai.
+```text
+Raw DLD Transactions
+        ↓
+Data Cleaning & Quality Checks
+        ↓
+Location Standardization
+        ↓
+Exploratory Data Analysis
+        ↓
+Feature Engineering
+        ↓
+Target Encoding
+        ↓
+Log Transformation
+        ↓
+Model Comparison
+        ↓
+LightGBM Hyperparameter Tuning
+        ↓
+Model Evaluation
+        ↓
+Model Export
+        ↓
+Streamlit Deployment
+        ↓
+Automated Property Valuation
+```
 
 ---
 
-## 👨‍💻 Author
+# 📌 Project Outcome
 
-**Muhammad Rohail**
+The project demonstrates a complete **end-to-end machine learning workflow**, from raw Dubai real estate transactions to a deployed automated valuation application.
 
-Data Analyst | Business Intelligence | Machine Learning
+The final **Tuned LightGBM Regressor** achieved:
+
+### **94.64% R²**
+### **13.52% MAPE**
+### **≈ AED 268K MAE**
+
+This provides a strong machine-learning foundation for automated residential property valuation in Dubai.
+
+---
+
+# 👨‍💻 Author
+
+## Muhammad Rohail
+
+**Data Analyst | Business Intelligence | Machine Learning**
